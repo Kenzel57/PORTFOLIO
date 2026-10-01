@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { categories } from "../Projects/data/categories";
 import { getFilm } from "../Category/data/films";
 import useSlowConnection from "../Home/hooks/useSlowConnection";
@@ -8,6 +8,15 @@ export default function Film({ slug, n }) {
   const dataSaver = useSlowConnection();
   const cat = categories.find((c) => c.slug === slug);
   const film = useMemo(() => (cat ? getFilm(cat, n) : null), [cat, n]);
+
+  // Video box shape. Starts at 16:9 (or film.ratio if you add one to your
+  // data), then snaps to the real video size once metadata loads.
+  const [ratio, setRatio] = useState(film?.ratio ?? 16 / 9);
+
+  // reset when switching to another film
+  useEffect(() => {
+    setRatio(film?.ratio ?? 16 / 9);
+  }, [film?.video, film?.ratio]);
 
   // normal page scrolling, same opt-in class as the other pages
   useEffect(() => {
@@ -54,9 +63,15 @@ export default function Film({ slug, n }) {
         )}
       </section>
 
-      {/* The film */}
-      <section className="mx-auto w-full max-w-[1100px] px-0 md:px-4">
-        <div className="aspect-video w-full bg-neutral-900">
+      {/* The film: box matches the video's real aspect ratio */}
+      <section className="mx-auto flex w-full max-w-[1100px] justify-center px-0 md:px-4">
+        <div
+          className="w-full bg-neutral-900"
+          style={{
+            aspectRatio: ratio,
+            maxWidth: `calc(80vh * ${ratio})`,
+          }}
+        >
           <video
             key={film.video}
             src={film.video}
@@ -65,6 +80,10 @@ export default function Film({ slug, n }) {
             playsInline
             preload={dataSaver ? "none" : "metadata"}
             controlsList="nodownload"
+            onLoadedMetadata={(e) => {
+              const { videoWidth: w, videoHeight: h } = e.currentTarget;
+              if (w && h) setRatio(w / h);
+            }}
             className="h-full w-full bg-black object-contain"
           />
         </div>
